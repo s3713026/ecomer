@@ -6,6 +6,7 @@ const path = require('path');
 
 //firebase admin setup
 let serviceAccount = require("./demotest-2c1b6-firebase-adminsdk-a7fqt-c6c1ff9736.json");
+const { resourceUsage } = require('process');
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
@@ -41,7 +42,7 @@ app.post('/signup', (req, res) => {
 
     // form validations
     if (name.length < 3) {
-        return res.json({ 'alert': 'name must be 3 letters long' });
+        return res.json({ 'alert': 'name must be 3 letters long ' });
     } else if (!email.length) {
         return res.json({ 'alert': 'enter your email' });
     } else if (password.length < 8) {
@@ -78,6 +79,61 @@ app.post('/signup', (req, res) => {
     }
 })
 
+//login router
+app.get('/login',(req,res)=>{
+    res.sendFile(path.join(staticPath,"login.html"));
+})
+
+app.post('/login',(req,res)=>{
+    let {email, password} = req.body;
+
+    if(!email.length || !password.length){
+        return res.json({'alert': 'Điền tất cả thông tin'})
+    }
+
+    db.collection('users').doc(email).get()
+    .then(user => {
+        if (!user.exists){ //if email does not exit
+            return res.json({'alert': 'log in email does not exits'})
+        }else{
+            bcrypt.compare(password ,user.data().password, (err,result)=> {
+                if(result){
+                    let data = user.data();
+                    return res.json({
+                        name: data.name,
+                        email: data.email,
+                        seller:data.seller,
+                    })
+                }else{
+                    return res.json({'alert':'password in incorrect'});
+                }
+            })
+        }
+    })
+})
+
+//seller router
+app.get('/seller',(req,res)=>{
+    res.sendFile(path.join(staticPath,"seller.html"));
+})
+
+app.post('/seller', (req,res)=>{
+    let {name, about,address,number,tac,legit,email} = req.body;
+    if(!name.length||!address.length|| !about.length|| number.length <10||!Number(number)){
+        return res.json({'alert': 'some information(s) is/are invalid'});
+    }else if(!tac || !legit){
+        return res.json({'alert': 'you must agree to our terms and conditions'})
+    } else {
+        // update users
+        db.collection('sellers').doc(email).set(req.body).then(data=>{
+            db.collection('users').doc(email).update({
+                seller: true
+            }).then(data => {
+                res.json(true)
+            })
+        })
+    }
+})
 
 
 
